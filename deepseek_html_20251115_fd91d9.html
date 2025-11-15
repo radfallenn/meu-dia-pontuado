@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meu Dia Pontuado</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⭐</text></svg>">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            background-attachment: fixed;
+        }
+
+        .container {
+            max-width: 450px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 25px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .date {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+        }
+
+        .card h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .progress-container {
+            text-align: center;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 16px;
+            background: #ecf0f1;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #27ae60, #2ecc71);
+            border-radius: 10px;
+            transition: width 0.8s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .points {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .activities-list {
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .activities-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .activities-list::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .activities-list::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 10px;
+        }
+
+        .activity-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 2px solid #f8f9fa;
+            transition: all 0.3s ease;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            background: #fafbfc;
+        }
+
+        .activity-item:hover {
+            background: #f1f8ff;
+            transform: translateX(5px);
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .activity-info {
+            flex: 1;
+            margin-right: 15px;
+        }
+
+        .activity-name {
+            font-size: 1.1rem;
+            color: #2c3e50;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        .activity-category {
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .activity-points {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #27ae60;
+            margin-right: 15px;
+        }
+
+        .activity-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .activity-status {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .status-completed {
+            background: #27ae60;
+            color: white;
+            border-color: #219a52;
+        }
+
+        .status-pending {
+            background: #bdc3c7;
+            color: white;
+            border-color: #a0a7b0;
+        }
+
+        .btn-edit, .btn-delete {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+
+        .btn-edit {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-edit:hover {
+            background: #2980b9;
+            transform: scale(1.1);
+        }
+
+        .btn-delete {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-delete:hover {
+            background: #c0392b;
+            transform: scale(1.1);
+        }
+
+        .btn-primary, .btn-secondary {
+            width: 100%;
+            padding: 18px;
+            border: none;
+            border-radius: 15px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(52, 152, 219, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+            color: white;
+            box-shadow: 0 6px 20px rgba(149, 165, 166, 0.3);
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(149, 165, 166, 0.4);
+        }
+
+        /* MODAL STYLES */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 450px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            animation: modalSlideIn 0.4s ease;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: scale(0.8) translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .modal h3 {
+            color: #2c3e50;
+            margin-bottom: 25px;
+            text-align: center;
+            font-size: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #2c3e50;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #fafbfc;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #3498db;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 25px;
+        }
+
+        .btn-cancel, .btn-confirm {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+        }
+
+        .btn-cancel {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .btn-cancel:hover {
+            background: #7f8c8d;
+            transform: translateY(-2px);
+        }
+
+        .btn-confirm {
+            background: linear-gradient(135deg, #27ae60, #219a52);
+            color: white;
+        }
+
+        .btn-confirm:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(39, 174, 96, 0.4);
+        }
+
+        /* BOTÃO RUN */
+        .run-container {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .run-btn {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 6px 20px rgba(231, 76, 60, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0 auto;
+        }
+
+        .run-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(231, 76, 60, 0.4);
+        }
+
+        /* RESPONSIVO */
+        @media (max-width: 480px) {
+            body {
+                padding: 15px;
+            }
+            
+            .header h1 {
+                font-size: 1.8rem;
+            }
+            
+            .card {
+                padding: 20px;
+            }
+            
+            .activity-item {
+                padding: 12px;
+            }
+            
+            .modal-content {
+                padding: 25px;
+            }
+        }
+
+        /* ANIMAÇÕES */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card {
+            animation: slideIn 0.6s ease;
+        }
+
+        /* TOAST NOTIFICATION */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #27ae60;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            z-index: 1001;
+            animation: toastSlideIn 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            max-width: 300px;
+        }
+
+        @keyframes toastSlideIn {
+            from {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .toast.error {
+            background: #e74c3c;
+        }
+
+        .toast.warning {
+            background: #f39c12;
+        }
+
+        /* EMPTY STATE */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #7f8c8d;
+        }
+
+        .empty-state .icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        .empty-state p {
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- BOTÃO RUN -->
+        <div class="run-container">
+            <button class="run-btn" onclick="resetApp()">
+                🔄 Reiniciar App
+            </button>
+        </div>
+
+        <!-- CABEÇALHO -->
+        <header class="header">
+            <h1>⭐ Meu Dia Pontuado</h1>
+            <div class="date" id="currentDate">Carregando data...</div>
+        </header>
+
+        <!-- CARD DE PROGRESSO -->
+        <div class="card">
+            <h2>📊 Progresso do Dia</h2>
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="points" id="pointsDisplay">0/100 pontos</div>
+            </div>
+        </div>
+
+        <!-- LISTA DE ATIVIDADES -->
+        <div class="card">
+            <h2>📝 Atividades de Hoje</h2>
+            <div class="activities-list" id="activitiesList">
+                <!-- As atividades serão inseridas aqui pelo JavaScript -->
+            </div>
+        </div>
+
+        <!-- BOTÕES -->
+        <button class="btn-primary" onclick="showAddModal()">
+            ➕ Adicionar Atividade
+        </button>
+        
+        <button class="btn-secondary" onclick="showStats()">
+            📈 Ver Estatísticas
+        </button>
+
+        <!-- MODAL PARA ADICIONAR/EDITAR ATIVIDADE -->
+        <div class="modal" id="activityModal">
+            <div class="modal-content">
+                <h3 id="modalTitle">Nova Atividade</h3>
+                
+                <div class="form-group">
+                    <label>Nome da Atividade:</label>
+                    <input type="text" id="activityName" placeholder="Ex: Caminhada 30min">
+                </div>
+
+                <div class="form-group">
+                    <label>Categoria:</label>
+                    <select id="activityCategory">
+                        <option value="saude">🏥 Saúde & Bem-estar</option>
+                        <option value="trabalho">💼 Trabalho & Produtividade</option>
+                        <option value="casa">🏠 Casa & Responsabilidades</option>
+                        <option value="social">🎯 Social & Lazer</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Pontuação:</label>
+                    <input type="number" id="activityPoints" value="10" min="1" max="50">
+                </div>
+
+                <div class="modal-buttons">
+                    <button class="btn-cancel" onclick="hideActivityModal()">Cancelar</button>
+                    <button class="btn-confirm" onclick="saveActivity()">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Dados iniciais do app
+        let atividades = [];
+        let editandoAtividadeId = null;
+        const metaDiaria = 100;
+
+        // Categorias com ícones
+        const categorias = {
+            'saude': { nome: '🏥 Saúde', cor: '#e74c3c' },
+            'trabalho': { nome: '💼 Trabalho', cor: '#3498db' },
+            'casa': { nome: '🏠 Casa', cor: '#9b59b6' },
+            'social': { nome: '🎯 Social', cor: '#f39c12' }
+        };
+
+        // Quando a página carregar
+        document.addEventListener('DOMContentLoaded', function() {
+            atualizarData();
+            carregarDados();
+            renderizarAtividades();
+            atualizarProgresso();
+        });
+
+        // Atualizar data atual
+        function atualizarData() {
+            const agora = new Date();
+            const options = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            };
+            document.getElementById('currentDate').textContent = 
+                agora.toLocaleDateString('pt-BR', options);
+        }
+
+        // Renderizar lista de atividades
+        function renderizarAtividades() {
+            const lista = document.getElementById('activitiesList');
+            
+            if (atividades.length === 0) {
+                lista.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📝</div>
+                        <p>Nenhuma atividade hoje</p>
+                        <p>Clique em "Adicionar Atividade" para começar!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            lista.innerHTML = '';
+            atividades.forEach(atividade => {
+                const categoria = categorias[atividade.categoria];
+                const emojiStatus = atividade.concluida ? '✅' : '⏳';
+                const textoStatus = atividade.concluida ? 'Concluída' : 'Pendente';
+
+                const item = document.createElement('div');
+                item.className = 'activity-item';
+                item.innerHTML = `
+                    <div class="activity-info">
+                        <div class="activity-name">${atividade.nome}</div>
+                        <div class="activity-category">
+                            ${categoria.nome} • ${textoStatus} ${emojiStatus}
+                        </div>
+                    </div>
+                    <div class="activity-points">+${atividade.pontos}</div>
+                    <div class="activity-actions">
+                        <button class="btn-edit" onclick="editarAtividade(${atividade.id})" title="Editar">
+                            ✏️
+                        </button>
+                        <button class="btn-delete" onclick="deletarAtividade(${atividade.id})" title="Excluir">
+                            🗑️
+                        </button>
+                        <div class="activity-status ${atividade.concluida ? 'status-completed' : 'status-pending'}" 
+                             onclick="alternarStatus(${atividade.id})"
+                             title="Clique para marcar/desmarcar">
+                            ${atividade.concluida ? '✓' : '○'}
+                        </div>
+                    </div>
+                `;
+                lista.appendChild(item);
+            });
+        }
+
+        // Atualizar barra de progresso
+        function atualizarProgresso() {
+            const pontuacaoTotal = atividades
+                .filter(a => a.concluida)
+                .reduce((total, a) => total + a.pontos, 0);
+            
+            const progresso = Math.min((pontuacaoTotal / metaDiaria) * 100, 100);
+            
+            document.getElementById('progressFill').style.width = `${progresso}%`;
+            document.getElementById('pointsDisplay').textContent = 
+                `${pontuacaoTotal}/${metaDiaria} pontos`;
+
+            // Mudar cor baseada no progresso
+            const progressFill = document.getElementById('progressFill');
+            if (progresso >= 100) {
+                progressFill.style.background = 'linear-gradient(135deg, #27ae60, #2ecc71)';
+            } else if (progresso >= 70) {
+                progressFill.style.background = 'linear-gradient(135deg, #f39c12, #f1c40f)';
+            } else {
+                progressFill.style.background = 'linear-gradient(135deg, #e74c3c, #e67e22)';
+            }
+        }
+
+        // Mostrar modal para adicionar
+        function showAddModal() {
+            editandoAtividadeId = null;
+            document.getElementById('modalTitle').textContent = 'Nova Atividade';
+            document.getElementById('activityName').value = '';
+            document.getElementById('activityCategory').value = 'saude';
+            document.getElementById('activityPoints').value = '10';
+            document.getElementById('activityModal').style.display = 'flex';
+            document.getElementById('activityName').focus();
+        }
+
+        // Mostrar modal para editar
+        function editarAtividade(id) {
+            const atividade = atividades.find(a => a.id === id);
+            if (atividade) {
+                editandoAtividadeId = id;
+                document.getElementById('modalTitle').textContent = 'Editar Atividade';
+                document.getElementById('activityName').value = atividade.nome;
+                document.getElementById('activityCategory').value = atividade.categoria;
+                document.getElementById('activityPoints').value = atividade.pontos;
+                document.getElementById('activityModal').style.display = 'flex';
+                document.getElementById('activityName').focus();
+            }
+        }
+
+        // Esconder modal
+        function hideActivityModal() {
+            document.getElementById('activityModal').style.display = 'none';
+            editandoAtividadeId = null;
+        }
+
+        // Salvar atividade (nova ou editada)
+        function saveActivity() {
+            const nome = document.getElementById('activityName').value.trim();
+            const categoria = document.getElementById('activityCategory').value;
+            const pontos = parseInt(document.getElementById('activityPoints').value);
+
+            if (!nome) {
+                showToast('Por favor, digite um nome para a atividade!', 'error');
+                return;
+            }
+
+            if (pontos < 1 || pontos > 50) {
+                showToast('A pontuação deve ser entre 1 e 50 pontos!', 'error');
+                return;
+            }
+
+            if (editandoAtividadeId) {
+                // Editar atividade existente
+                const index = atividades.findIndex(a => a.id === editandoAtividadeId);
+                if (index !== -1) {
+                    atividades[index] = {
+                        ...atividades[index],
+                        nome: nome,
+                        categoria: categoria,
+                        pontos: pontos
+                    };
+                    showToast('Atividade atualizada com sucesso! ✅');
+                }
+            } else {
+                // Nova atividade
+                const novaAtividade = {
+                    id: Date.now(),
+                    nome: nome,
+                    pontos: pontos,
+                    concluida: false,
+                    categoria: categoria
+                };
+                atividades.push(novaAtividade);
+                showToast('Atividade adicionada com sucesso! 🎉');
+            }
+
+            renderizarAtividades();
+            atualizarProgresso();
+            hideActivityModal();
+            salvarDados();
+        }
+
+        // Deletar atividade
+        function deletarAtividade(id) {
+            if (confirm('Tem certeza que quer excluir esta atividade?')) {
+                atividades = atividades.filter(a => a.id !== id);
+                renderizarAtividades();
+                atualizarProgresso();
+                salvarDados();
+                showToast('Atividade excluída! 🗑️');
+            }
+        }
+
+        // Alternar entre concluída/pendente
+        function alternarStatus(id) {
+            const atividade = atividades.find(a => a.id === id);
+            if (atividade) {
+                atividade.concluida = !atividade.concluida;
+                renderizarAtividades();
+                atualizarProgresso();
+                salvarDados();
+                
+                const mensagem = atividade.concluida ? 
+                    'Atividade concluída! 🎉' : 'Atividade marcada como pendente';
+                showToast(mensagem);
+            }
+        }
+
+        // Mostrar estatísticas
+        function showStats() {
+            const concluidas = atividades.filter(a => a.concluida).length;
+            const total = atividades.length;
+            const pontuacaoTotal = atividades
+                .filter(a => a.concluida)
+                .reduce((total, a) => total + a.pontos, 0);
+            
+            const percentual = total > 0 ? Math.round((concluidas / total) * 100) : 0;
+            const pontosFaltantes = Math.max(0, metaDiaria - pontuacaoTotal);
+            
+            // Estatísticas por categoria
+            const statsCategorias = {};
+            atividades.forEach(atividade => {
+                if (atividade.concluida) {
+                    if (!statsCategorias[atividade.categoria]) {
+                        statsCategorias[atividade.categoria] = 0;
+                    }
+                    statsCategorias[atividade.categoria] += atividade.pontos;
+                }
+            });
+
+            let statsTexto = `🏆 **ESTATÍSTICAS DO DIA**\n\n`;
+            statsTexto += `✅ ${concluidas}/${total} atividades concluídas\n`;
+            statsTexto += `📈 ${percentual}% de aproveitamento\n\n`;
+            statsTexto += `🎯 ${pontuacaoTotal}/${metaDiaria} pontos\n`;
+            statsTexto += `⭐ ${pontosFaltantes} pontos faltando\n\n`;
+
+            if (Object.keys(statsCategorias).length > 0) {
+                statsTexto += `**Pontos por Categoria:**\n`;
+                Object.keys(statsCategorias).forEach(cat => {
+                    statsTexto += `${categorias[cat].nome}: ${statsCategorias[cat]} pts\n`;
+                });
+            }
+
+            statsTexto += `\n${pontuacaoTotal >= metaDiaria ? 
+                '🎉 PARABÉNS! Meta diária atingida!' : 
+                '💪 Continue assim! Você consegue!'}`;
+
+            alert(statsTexto);
+        }
+
+        // Notificação toast
+        function showToast(mensagem, tipo = 'success') {
+            // Remover toast anterior se existir
+            const toastAnterior = document.querySelector('.toast');
+            if (toastAnterior) {
+                toastAnterior.remove();
+            }
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${tipo}`;
+            toast.innerHTML = `
+                <span>${tipo === 'success' ? '✅' : tipo === 'error' ? '❌' : '⚠️'}</span>
+                <span>${mensagem}</span>
+            `;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'toastSlideIn 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Salvar dados no localStorage
+        function salvarDados() {
+            localStorage.setItem('meuDiaPontuado', JSON.stringify(atividades));
+        }
+
+        // Carregar dados do localStorage
+        function carregarDados() {
+            const dadosSalvos = localStorage.getItem('meuDiaPontuado');
+            if (dadosSalvos) {
+                atividades = JSON.parse(dadosSalvos);
+            } else {
+                // Dados iniciais padrão
+                atividades = [
+                    { id: 1, nome: 'Tomar medicamento', pontos: 10, concluida: false, categoria: 'saude' },
+                    { id: 2, nome: '30min caminhada', pontos: 15, concluida: false, categoria: 'saude' },
+                    { id: 3, nome: 'Limpar cocô dos cachorros', pontos: 10, concluida: false, categoria: 'casa' }
+                ];
+            }
+        }
+
+        // REINICIAR APP
+        function resetApp() {
+            if (confirm('Tem certeza que quer reiniciar o app? Todos os dados serão perdidos!')) {
+                localStorage.removeItem('meuDiaPontuado');
+                atividades = [
+                    { id: 1, nome: 'Tomar medicamento', pontos: 10, concluida: false, categoria: 'saude' },
+                    { id: 2, nome: '30min caminhada', pontos: 15, concluida: false, categoria: 'saude' },
+                    { id: 3, nome: 'Limpar cocô dos cachorros', pontos: 10, concluida: false, categoria: 'casa' }
+                ];
+                renderizarAtividades();
+                atualizarProgresso();
+                showToast('App reiniciado com sucesso! 🔄');
+            }
+        }
+
+        // Fechar modal clicando fora
+        document.getElementById('activityModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideActivityModal();
+            }
+        });
+
+        // Enter para salvar atividade
+        document.getElementById('activityName').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                saveActivity();
+            }
+        });
+
+        // Tecla Escape para fechar modal
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                hideActivityModal();
+            }
+        });
+    </script>
+</body>
+</html>
