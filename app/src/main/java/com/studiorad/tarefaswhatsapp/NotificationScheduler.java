@@ -1,5 +1,6 @@
 package com.studiorad.tarefaswhatsapp;
 
+import android.Manifest;
 import android.app.AlarmManager;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -7,20 +8,32 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.os.Build;
+import androidx.core.app.NotificationCompat;
 import java.util.Calendar;
 
 public class NotificationScheduler {
     public static final String CHANNEL_ID = "tarefas_diarias";
+    public static final String STATUS_CHANNEL_ID = "tarefas_status";
     private static final String PREFS = "tarefas_notificacoes";
     private static final int REQUEST_CODE = 7027;
+    private static final int STATUS_ID = 7030;
 
     public static void ensureChannel(Context context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Relatorio diario de tarefas", NotificationManager.IMPORTANCE_HIGH);
             channel.setDescription("Relatorio diario com atrasos, prioridades e pagamentos pendentes.");
+
+            NotificationChannel statusChannel = new NotificationChannel(STATUS_CHANNEL_ID, "Status permanente de tarefas", NotificationManager.IMPORTANCE_DEFAULT);
+            statusChannel.setDescription("Resumo sempre visivel de tarefas atrasadas e tarefas do dia.");
+            statusChannel.setShowBadge(true);
+
             NotificationManager manager = context.getSystemService(NotificationManager.class);
-            if (manager != null) manager.createNotificationChannel(channel);
+            if (manager != null) {
+                manager.createNotificationChannel(channel);
+                manager.createNotificationChannel(statusChannel);
+            }
         }
     }
 
@@ -30,6 +43,53 @@ public class NotificationScheduler {
                 .putString("report", report == null || report.trim().isEmpty() ? "Nenhuma tarefa cadastrada." : report)
                 .putString("time", time == null || time.trim().isEmpty() ? "07:00" : time)
                 .apply();
+    }
+
+    public static void saveStatus(Context context, String summary, String detail) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        prefs.edit()
+                .putString("status_summary", summary == null || summary.trim().isEmpty() ? "Sem tarefas urgentes." : summary)
+                .putString("status_detail", detail == null || detail.trim().isEmpty() ? "Abra o app para ver suas tarefas." : detail)
+                .apply();
+    }
+
+    public static String getStatusSummary(Context context) {
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("status_summary", "Sem tarefas urgentes.");
+    }
+
+    public static String getStatusDetail(Context context) {
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("status_detail", "Abra o app para ver suas tarefas.");
+    }
+
+    public static void showStatusNotification(Context context) {
+        ensureChannel(context);
+        if (Build.VERSION.SDK_INT >= 33 && context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return;
+
+        String summary = getStatusSummary(context);
+        String detail = getStatusDetail(context);
+
+        Intent openApp = new Intent(context, MainActivity.class);
+        openApp.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent contentIntent = PendingIntent.getActivity(context, 1, openApp, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        NotificationCompat.BigTextStyle style = new NotificationCompat.BigTextStyle()
+                .bigText(detail)
+                .setBigContentTitle("Tarefas atrasadas e de hoje")
+                .setSummaryText("Resumo fixo");
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, STATUS_CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentTitle("Tarefas atrasadas e de hoje")
+                .setContentText(summary)
+                .setStyle(style)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setOngoing(true)
+                .setOnlyAlertOnce(true)
+                .setShowWhen(false)
+                .setContentIntent(contentIntent);
+
+        NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager != null) manager.notify(STATUS_ID, builder.build());
     }
 
     public static void scheduleDaily(Context context, String time) {
