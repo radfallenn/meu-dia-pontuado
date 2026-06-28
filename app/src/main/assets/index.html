@@ -92,10 +92,10 @@ tr.done{opacity:.55;text-decoration:line-through}
     </div>
     <div class="actions" style="margin-top:12px">
       <button class="btn-green" onclick="abrirWhatsApp()">Enviar relatório no WhatsApp</button>
-      <button onclick="ativarLembreteLocal()">Ativar aviso neste dispositivo</button>
+      <button onclick="ativarLembreteLocal()">Ativar notificação diária</button>
       <button onclick="copiarRelatorio()">Copiar relatório</button>
     </div>
-    <p class="small">Importante: navegador/HTML não envia WhatsApp sozinho em segundo plano. Ele abre a mensagem pronta. Para envio 100% automático precisa de servidor com WhatsApp Cloud API, n8n, Make ou Evolution API.</p>
+    <p class="small">O WhatsApp continua manual: o botão abre a mensagem pronta. O lembrete diário será uma notificação do próprio app com o relatório das tarefas.</p>
   </div>
 
   <div class="stats">
@@ -219,7 +219,7 @@ function render(){
   <td><button onclick="editar(${t.id})">Editar</button> <button onclick="remover(${t.id})">Apagar</button></td>`;
   tb.appendChild(tr);
  });
- atualizarStats(); document.getElementById('relatorio').textContent=gerarRelatorio();
+ atualizarStats(); document.getElementById('relatorio').textContent=gerarRelatorio(); salvarRelatorioNativo();
 }
 
 function atualizarStats(){
@@ -308,12 +308,22 @@ function abrirWhatsApp(){
 }
 function copiarRelatorio(){navigator.clipboard.writeText(gerarRelatorio());alert('Relatório copiado.');}
 
+function salvarRelatorioNativo(){
+ try{
+  const h=horaRelatorio.value||localStorage.getItem('horaRelatorio')||'07:00';
+  localStorage.setItem('horaRelatorio',h);
+  if(window.AndroidApp && AndroidApp.saveDailyReport){
+   AndroidApp.saveDailyReport(gerarRelatorio(), h);
+  }
+ }catch(e){}
+}
+
 function ativarLembreteLocal(){
  const h=horaRelatorio.value||'07:00';
  localStorage.setItem('horaRelatorio',h);
  if(whats.value) localStorage.setItem('whats',whats.value.replace(/\D/g,''));
- if(Notification && Notification.permission!=='granted') Notification.requestPermission();
- alert('Aviso local ativado neste navegador. Mantenha esta página aberta para receber no horário definido.');
+ salvarRelatorioNativo();
+ alert('Notificação diária ativada. O app vai te avisar todos os dias no horário definido com o relatório das tarefas.');
 }
 
 setInterval(()=>{
@@ -322,8 +332,9 @@ setInterval(()=>{
  const stamp=now.toISOString().slice(0,10)+' '+hh;
  if(hh===h && ultimoAviso!==stamp){
   ultimoAviso=stamp;
-  if(Notification && Notification.permission==='granted') new Notification('Relatório de tarefas pronto', {body:'Clique no app para enviar pelo WhatsApp.'});
-  abrirWhatsApp();
+  if(Notification && Notification.permission==='granted') {
+    new Notification('📋 Relatório diário de tarefas', {body:'Abra o app para ver prioridades, atrasos e pagamentos pendentes.'});
+  }
  }
 }, 30000);
 
@@ -340,6 +351,7 @@ function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':
 horaRelatorio.value=localStorage.getItem('horaRelatorio')||'07:00';
 whats.value=localStorage.getItem('whats')||'';
 render();
+salvarRelatorioNativo();
 </script>
 </body>
 </html>
