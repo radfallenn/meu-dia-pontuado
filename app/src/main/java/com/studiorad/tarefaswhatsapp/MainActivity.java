@@ -18,6 +18,7 @@ import android.webkit.WebViewClient;
 
 public class MainActivity extends Activity {
     private WebView webView;
+    private String pendingSection = "";
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -36,6 +37,8 @@ public class MainActivity extends Activity {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1001);
         }
 
+        pendingSection = getIntent() != null ? getIntent().getStringExtra("open_section") : "";
+
         webView = new WebView(this);
         setContentView(webView);
 
@@ -50,6 +53,15 @@ public class MainActivity extends Activity {
         webView.addJavascriptInterface(new AndroidBridge(), "AndroidApp");
         webView.setWebChromeClient(new WebChromeClient());
         webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                if (pendingSection != null && !pendingSection.isEmpty()) {
+                    view.evaluateJavascript("if(window.openFromAndroid){openFromAndroid('" + pendingSection + "');}", null);
+                    pendingSection = "";
+                }
+            }
+
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 if (url.startsWith("https://wa.me/") || url.startsWith("whatsapp://")) {
@@ -76,6 +88,22 @@ public class MainActivity extends Activity {
         public void updateStatusNotification(String summary, String detail) {
             NotificationScheduler.saveStatus(MainActivity.this, summary, detail);
             NotificationScheduler.showStatusNotification(MainActivity.this);
+        }
+
+        @JavascriptInterface
+        public void scheduleTaskReminder(String title, String detail, String date, String time, String taskId) {
+            NotificationScheduler.scheduleTaskReminder(MainActivity.this, title, detail, date, time, taskId);
+        }
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        pendingSection = intent != null ? intent.getStringExtra("open_section") : "";
+        if (webView != null && pendingSection != null && !pendingSection.isEmpty()) {
+            webView.evaluateJavascript("if(window.openFromAndroid){openFromAndroid('" + pendingSection + "');}", null);
+            pendingSection = "";
         }
     }
 
