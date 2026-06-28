@@ -7,7 +7,7 @@
 
     <application
         android:theme="@style/AppTheme"
-        android:label="Tarefas WhatsApp"
+        android:label="Meu Dia Pro"
         android:allowBackup="true"
         android:usesCleartextTraffic="true"
         android:resizeableActivity="true">
@@ -22,6 +22,8 @@
         </activity>
 
         <receiver android:name=".TaskNotificationReceiver" android:exported="false"/>
+        <receiver android:name=".SingleTaskReminderReceiver" android:exported="false"/>
+        <receiver android:name=".NotificationActionReceiver" android:exported="false"/>
         <receiver android:name=".BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
