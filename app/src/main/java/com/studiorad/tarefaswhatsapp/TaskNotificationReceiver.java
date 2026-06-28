@@ -14,6 +14,7 @@ public class TaskNotificationReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         NotificationScheduler.ensureChannel(context);
+        NotificationScheduler.showStatusNotification(context);
         if (Build.VERSION.SDK_INT >= 33 && context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return;
 
         String report = NotificationScheduler.getReport(context);
