@@ -1,12 +1,16 @@
 package com.studiorad.tarefaswhatsapp;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.Window;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -27,6 +31,11 @@ public class MainActivity extends Activity {
                 View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         );
 
+        if (Build.VERSION.SDK_INT >= 33 &&
+                checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1001);
+        }
+
         webView = new WebView(this);
         setContentView(webView);
 
@@ -38,23 +47,29 @@ public class MainActivity extends Activity {
         settings.setAllowContentAccess(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
 
+        webView.addJavascriptInterface(new AndroidBridge(), "AndroidApp");
         webView.setWebChromeClient(new WebChromeClient());
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 if (url.startsWith("https://wa.me/") || url.startsWith("whatsapp://")) {
-                    try {
-                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
-                    } catch (Exception e) {
-                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
-                    }
+                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
                     return true;
                 }
                 return false;
             }
         });
 
+        NotificationScheduler.ensureChannel(this);
         webView.loadUrl("file:///android_asset/index.html");
+    }
+
+    public class AndroidBridge {
+        @JavascriptInterface
+        public void saveDailyReport(String report, String time) {
+            NotificationScheduler.saveReport(MainActivity.this, report, time);
+            NotificationScheduler.scheduleDaily(MainActivity.this, time);
+        }
     }
 
     @Override
