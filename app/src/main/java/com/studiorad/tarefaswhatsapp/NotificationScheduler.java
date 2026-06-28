@@ -16,6 +16,7 @@ import java.util.Calendar;
 public class NotificationScheduler {
     public static final String CHANNEL_ID = "tarefas_diarias";
     public static final String STATUS_CHANNEL_ID = "tarefas_status";
+    public static final String TASK_CHANNEL_ID = "tarefas_horario";
     private static final String PREFS = "tarefas_notificacoes";
     private static final int REQUEST_CODE = 7027;
     private static final int STATUS_ID = 7030;
@@ -29,10 +30,14 @@ public class NotificationScheduler {
             statusChannel.setDescription("Resumo sempre visivel de tarefas atrasadas e tarefas do dia.");
             statusChannel.setShowBadge(true);
 
+            NotificationChannel taskChannel = new NotificationChannel(TASK_CHANNEL_ID, "Lembretes por tarefa", NotificationManager.IMPORTANCE_HIGH);
+            taskChannel.setDescription("Notificacoes no horario especifico de cada tarefa.");
+
             NotificationManager manager = context.getSystemService(NotificationManager.class);
             if (manager != null) {
                 manager.createNotificationChannel(channel);
                 manager.createNotificationChannel(statusChannel);
+                manager.createNotificationChannel(taskChannel);
             }
         }
     }
@@ -72,6 +77,18 @@ public class NotificationScheduler {
         openApp.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent contentIntent = PendingIntent.getActivity(context, 1, openApp, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
+        Intent todayIntent = new Intent(context, NotificationActionReceiver.class);
+        todayIntent.setAction(NotificationActionReceiver.ACTION_OPEN_TODAY);
+        PendingIntent todayPending = PendingIntent.getBroadcast(context, 31, todayIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        Intent lateIntent = new Intent(context, NotificationActionReceiver.class);
+        lateIntent.setAction(NotificationActionReceiver.ACTION_OPEN_LATE);
+        PendingIntent latePending = PendingIntent.getBroadcast(context, 32, lateIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        Intent refreshIntent = new Intent(context, NotificationActionReceiver.class);
+        refreshIntent.setAction(NotificationActionReceiver.ACTION_REFRESH);
+        PendingIntent refreshPending = PendingIntent.getBroadcast(context, 33, refreshIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
         NotificationCompat.BigTextStyle style = new NotificationCompat.BigTextStyle()
                 .bigText(detail)
                 .setBigContentTitle("Tarefas atrasadas e de hoje")
@@ -86,7 +103,10 @@ public class NotificationScheduler {
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
                 .setShowWhen(false)
-                .setContentIntent(contentIntent);
+                .setContentIntent(contentIntent)
+                .addAction(android.R.drawable.ic_menu_today, "Hoje", todayPending)
+                .addAction(android.R.drawable.ic_menu_recent_history, "Atrasadas", latePending)
+                .addAction(android.R.drawable.ic_popup_sync, "Atualizar", refreshPending);
 
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager != null) manager.notify(STATUS_ID, builder.build());
@@ -111,18 +131,45 @@ public class NotificationScheduler {
 
         Intent intent = new Intent(context, TaskNotificationReceiver.class);
         PendingIntent pendingIntent = PendingIntent.getBroadcast(context, REQUEST_CODE, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        scheduleExact(context, calendar.getTimeInMillis(), pendingIntent);
+    }
+
+    public static void scheduleTaskReminder(Context context, String title, String detail, String date, String time, String taskId) {
+        if (date == null || date.trim().isEmpty() || time == null || time.trim().isEmpty()) return;
+        try {
+            String[] d = date.split("-");
+            String[] t = time.split(":");
+            Calendar calendar = Calendar.getInstance();
+            calendar.set(Calendar.YEAR, Integer.parseInt(d[0]));
+            calendar.set(Calendar.MONTH, Integer.parseInt(d[1]) - 1);
+            calendar.set(Calendar.DAY_OF_MONTH, Integer.parseInt(d[2]));
+            calendar.set(Calendar.HOUR_OF_DAY, Integer.parseInt(t[0]));
+            calendar.set(Calendar.MINUTE, Integer.parseInt(t[1]));
+            calendar.set(Calendar.SECOND, 0);
+            calendar.set(Calendar.MILLISECOND, 0);
+
+            if (calendar.getTimeInMillis() <= System.currentTimeMillis()) return;
+
+            Intent intent = new Intent(context, SingleTaskReminderReceiver.class);
+            intent.putExtra("title", title == null ? "Tarefa" : title);
+            intent.putExtra("detail", detail == null ? "Lembrete de tarefa" : detail);
+            intent.putExtra("taskId", taskId == null ? "" : taskId);
+
+            int requestCode = Math.abs((taskId == null ? title : taskId).hashCode());
+            PendingIntent pendingIntent = PendingIntent.getBroadcast(context, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            scheduleExact(context, calendar.getTimeInMillis(), pendingIntent);
+        } catch (Exception ignored) {}
+    }
+
+    private static void scheduleExact(Context context, long triggerAt, PendingIntent pendingIntent) {
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarmManager == null) return;
 
         alarmManager.cancel(pendingIntent);
-        long triggerAt = calendar.getTimeInMillis();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (alarmManager.canScheduleExactAlarms()) {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent);
-            } else {
-                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent);
-            }
+            if (alarmManager.canScheduleExactAlarms()) alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent);
+            else alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent);
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent);
         } else {
