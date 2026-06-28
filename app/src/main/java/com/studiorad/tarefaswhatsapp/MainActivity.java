@@ -61,6 +61,7 @@ public class MainActivity extends Activity {
         });
 
         NotificationScheduler.ensureChannel(this);
+        NotificationScheduler.showStatusNotification(this);
         webView.loadUrl("file:///android_asset/index.html");
     }
 
@@ -69,6 +70,12 @@ public class MainActivity extends Activity {
         public void saveDailyReport(String report, String time) {
             NotificationScheduler.saveReport(MainActivity.this, report, time);
             NotificationScheduler.scheduleDaily(MainActivity.this, time);
+        }
+
+        @JavascriptInterface
+        public void updateStatusNotification(String summary, String detail) {
+            NotificationScheduler.saveStatus(MainActivity.this, summary, detail);
+            NotificationScheduler.showStatusNotification(MainActivity.this);
         }
     }
 
