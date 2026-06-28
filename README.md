@@ -1,22 +1,36 @@
-# Tarefas WhatsApp APK
+# Meu Dia Pro
 
-App Android para gerenciar tarefas, prioridades, atrasos e pagamentos pendentes.
+Aplicativo Android profissional para tarefas, pagamentos, projetos, foco, produtividade e notificações diárias.
 
-## Funções
-- Check para marcar tarefa concluída.
-- Data limite e hora de aviso.
-- Nome da tarefa.
-- Prioridade: alta, média e baixa.
-- Pagamento pendente ou OK.
-- Relatório diário pronto para WhatsApp.
-- Backup e importação em JSON.
-- Workflow do GitHub Actions para gerar APK.
+## Recursos principais
+- Dashboard Hoje com saudação personalizada.
+- Centro de comando do dia.
+- Prioridades: Crítica, Alta, Média, Baixa e Opcional.
+- Categorias configuráveis.
+- Projetos com progresso.
+- Subtarefas/checklists.
+- Central financeira com valores, vencimentos e pagamentos pendentes.
+- Etiquetas.
+- Busca, filtros e ordenação.
+- Modo foco/Pomodoro.
+- Tema claro/escuro.
+- Relatório formatado.
+- Botão manual do WhatsApp mantido.
+- Notificação diária nativa Android no horário definido.
+- Backup/importação JSON.
+
+## Melhorias v2.1
+- Agenda semanal.
+- Linha do tempo das próximas tarefas.
+- Templates rápidos.
+- XP, níveis e conquistas.
+- Arquivamento de tarefas concluídas.
+- Painel de insights de produtividade.
+- Ação para adiar atrasadas para amanhã.
+- Recorrências recriam a próxima tarefa automaticamente.
 
 ## Como gerar o APK
 1. Abra a aba **Actions** no GitHub.
 2. Entre em **Gerar APK Android**.
 3. Clique em **Run workflow**.
-4. Depois que terminar, baixe o artefato **Tarefas-WhatsApp-APK**.
-
-## Observação importante
-O app abre a mensagem pronta no WhatsApp. Envio 100% automático em segundo plano exige integração com WhatsApp Cloud API, Evolution API, n8n ou Make.
+4. Depois que terminar, baixe o artefato do APK.
