@@ -230,27 +230,72 @@ function atualizarStats(){
  sPag.textContent=abertas.filter(t=>t.pagamento==='nao').length;
 }
 
+function dataBR(s){
+ if(!s) return 'Sem data';
+ const [y,m,d]=s.split('-');
+ if(!y||!m||!d) return s;
+ return `${d}/${m}/${y}`;
+}
+function horaBR(s){ return s ? ` às ${s}` : ''; }
+function prioridadeIcone(p){
+ if(p==='Alta') return '🔴 Alta';
+ if(p==='Média') return '🟠 Média';
+ return '🟢 Baixa';
+}
+function linhaResumo(label, valor, icon){
+ return `${icon} ${label}: ${valor}\n`;
+}
+function separar(){
+ return '━━━━━━━━━━━━━━━━━━━━\n';
+}
+function itemFormatado(t, i){
+ const st=status(t).txt;
+ const pagamentoTxt=t.pagamento==='nao'?'💰 Pagamento: PENDENTE':'✅ Pagamento: OK';
+ let texto=`${i+1}. ${prioridadeIcone(t.prioridade)} | ${t.nome}\n`;
+ texto+=`   📅 Prazo: ${dataBR(t.data)}${horaBR(t.hora)}\n`;
+ texto+=`   ⏱ Status: ${st}\n`;
+ texto+=`   ${pagamentoTxt}\n`;
+ if(t.obs) texto+=`   📝 Obs: ${t.obs}\n`;
+ return texto;
+}
+
 function gerarRelatorio(){
  const abertas=tarefas.filter(t=>!t.done).sort((a,b)=>prioridadePeso(a.prioridade)-prioridadePeso(b.prioridade)||String(a.data).localeCompare(String(b.data)));
- const atrasadas=abertas.filter(t=>t.data&&diasEntre(t.data,hojeStr())<0);
+ const concluidas=tarefas.filter(t=>t.done);
+ const atrasadas=abertas.filter(t=>t.data&&diasEntre(t.data, hojeStr())<0);
  const hoje=abertas.filter(t=>t.data===hojeStr());
  const pag=abertas.filter(t=>t.pagamento==='nao');
- let msg=`📋 RELATÓRIO DE TAREFAS\nData: ${new Date().toLocaleDateString('pt-BR')}\n\n`;
- msg+=`Resumo:\n• Total: ${tarefas.length}\n• Abertas: ${abertas.length}\n• Atrasadas: ${atrasadas.length}\n• Para hoje: ${hoje.length}\n• Pagamento pendente: ${pag.length}\n\n`;
- const bloco=(titulo, arr)=>{
+ const alta=abertas.filter(t=>t.prioridade==='Alta');
+
+ let msg='';
+ msg+='📋 *RELATÓRIO DIÁRIO DE TAREFAS*\n';
+ msg+=`📆 ${new Date().toLocaleDateString('pt-BR')}\n`;
+ msg+=separar();
+ msg+='📊 *RESUMO GERAL*\n';
+ msg+=linhaResumo('Total cadastradas', tarefas.length, '🗂');
+ msg+=linhaResumo('Abertas', abertas.length, '📌');
+ msg+=linhaResumo('Prioridade alta', alta.length, '🔴');
+ msg+=linhaResumo('Atrasadas', atrasadas.length, '🚨');
+ msg+=linhaResumo('Para hoje', hoje.length, '📅');
+ msg+=linhaResumo('Pagamento pendente', pag.length, '💰');
+ msg+=linhaResumo('Concluídas', concluidas.length, '✅');
+ msg+=separar();
+
+ const bloco=(titulo, arr, vazio)=>{
   msg+=`${titulo}\n`;
-  if(!arr.length){msg+='Nenhum item.\n\n';return}
-  arr.forEach((t,i)=>{
-    const st=status(t).txt;
-    msg+=`${i+1}. [${t.prioridade}] ${t.nome}\n   Data: ${t.data||'sem data'}${t.hora?' às '+t.hora:''}\n   Status: ${st}\n   Pagamento: ${t.pagamento==='nao'?'PENDENTE':'OK'}\n`;
-    if(t.obs) msg+=`   Obs: ${t.obs}\n`;
-  });
-  msg+='\n';
+  if(!arr.length){ msg+=`${vazio}\n`; msg+=separar(); return; }
+  arr.forEach((t,i)=>{ msg+=itemFormatado(t,i)+'\n'; });
+  msg+=separar();
  };
- bloco('🚨 ATRASADAS', atrasadas);
- bloco('📌 PARA HOJE', hoje);
- bloco('💰 PAGAMENTO PENDENTE', pag);
- bloco('🗂 TODAS ABERTAS POR PRIORIDADE', abertas);
+
+ bloco('🚨 *ATRASADAS*', atrasadas, '✅ Nenhuma tarefa atrasada.');
+ bloco('📅 *PARA ENTREGAR HOJE*', hoje, '✅ Nada vencendo hoje.');
+ bloco('💰 *PAGAMENTO PENDENTE*', pag, '✅ Nenhum pagamento pendente.');
+ bloco('🔴 *PRIORIDADE ALTA*', alta, '✅ Nenhuma tarefa de prioridade alta.');
+ bloco('🗂 *TODAS AS TAREFAS ABERTAS*', abertas, '✅ Nenhuma tarefa aberta.');
+
+ msg+='✨ *Fim do relatório.*\n';
+ msg+='Abra o app para marcar as tarefas concluídas.';
  return msg.trim();
 }
 
