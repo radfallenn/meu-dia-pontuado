@@ -56,3 +56,71 @@
   window.calcularScoreGeral=calcularScoreGeral;window.renderScore=renderScore;
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',instalar);else instalar();
 })();
+
+// Meu Dia Pro v2.7 - Melhorias em 1 commit: missões, histórico e sugestões inteligentes
+(function(){
+  if(window.__meuDiaPro27) return;
+  window.__meuDiaPro27=true;
+
+  function cssV27(){
+    if(document.getElementById('style-v27')) return;
+    const style=document.createElement('style');
+    style.id='style-v27';
+    style.textContent=`
+      .v27Grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+      .v27Card{background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:24px;padding:14px;box-shadow:var(--shadow)}
+      .v27Card b{font-size:16px}
+      .v27Hint{padding:12px;border-radius:18px;background:linear-gradient(135deg,#eef5ff,#fff);border:1px solid #dbe5f3;margin-bottom:8px}
+      .v27Chart{height:120px;display:flex;align-items:end;gap:6px;padding:10px;border-radius:20px;background:#f8fbff;border:1px solid #dbe5f3}
+      .v27Bar{flex:1;border-radius:999px 999px 4px 4px;background:linear-gradient(180deg,#1769ff,#22c55e);min-height:6px}
+      .v27Mission{display:flex;gap:10px;align-items:center;background:#fff;border:1px solid #dbe5f3;border-radius:18px;padding:11px;margin-bottom:8px;box-shadow:0 6px 16px rgba(15,23,42,.06)}
+      .v27MissionIcon{font-size:24px}.v27Badge{display:inline-flex;padding:4px 8px;border-radius:999px;background:#eef5ff;color:#174ea6;font-weight:900;font-size:12px}
+      .themeDark .v27Card,.themeDark .v27Mission,.themeDark .v27Hint,.themeDark .v27Chart{background:#111827!important;border-color:#1e293b!important}
+      @media(max-width:850px){.v27Grid{grid-template-columns:1fr}}
+    `;
+    document.head.appendChild(style);
+  }
+
+  function st(){return window.state||{tarefas:[]}}
+  function hoje(){return typeof hojeStr==='function'?hojeStr():new Date().toISOString().slice(0,10)}
+  function esc2(s){return typeof esc==='function'?esc(s):String(s??'')}
+  function scoreAtual(){try{return window.calcularScoreGeral?window.calcularScoreGeral():{score:Number(localStorage.getItem('score_geral_atual')||0),atrasadas:[],criticas:[],vencemHoje:[],pagamentos:[],concluidasNoPrazo:[]}}catch(e){return {score:0,atrasadas:[],criticas:[],vencemHoje:[],pagamentos:[],concluidasNoPrazo:[]}}}
+
+  function salvarHistoricoScore(){try{const s=scoreAtual().score,key='score_history_v27',arr=JSON.parse(localStorage.getItem(key)||'[]'),d=hoje(),last=arr[arr.length-1];if(!last||last.date!==d)arr.push({date:d,score:s});else last.score=s;localStorage.setItem(key,JSON.stringify(arr.slice(-14)))}catch(e){}}
+
+  function missoesDoDia(){
+    const s=scoreAtual(), tarefas=st().tarefas||[], abertas=tarefas.filter(t=>!t.done), atraso=s.atrasadas?.[0], critica=s.criticas?.[0], hojeTask=s.vencemHoje?.[0], pagamento=s.pagamentos?.[0];
+    const mis=[];
+    if(atraso)mis.push(['🚨','Eliminar atraso principal',`Concluir: ${atraso.nome}`,'Alta']);
+    if(critica)mis.push(['⚫','Resolver tarefa crítica',`Prioridade máxima: ${critica.nome}`,'Crítica']);
+    if(hojeTask)mis.push(['📅','Fechar tarefa de hoje',`Entrega: ${hojeTask.nome}`,'Hoje']);
+    if(pagamento)mis.push(['💰','Regularizar pagamento',`Pendente: ${pagamento.nome}`,'Financeiro']);
+    if(!mis.length&&abertas[0])mis.push(['🎯','Avançar no dia',`Faça primeiro: ${abertas[0].nome}`,'Foco']);
+    if(!mis.length)mis.push(['✅','Dia limpo','Nenhuma missão urgente agora.','Livre']);
+    return mis.slice(0,4);
+  }
+
+  function sugestoesInteligentes(){
+    const s=scoreAtual(), out=[];
+    if(s.score<60)out.push('Seu score está baixo: conclua uma tarefa atrasada antes de adicionar novas tarefas.');
+    if((s.atrasadas||[]).length>2)out.push('Você tem várias atrasadas: use “Adiar atrasadas” só nas que realmente podem esperar.');
+    if((s.criticas||[]).length>0)out.push('Tarefas críticas abertas derrubam bastante o score. Resolva uma crítica para recuperar pontos rápido.');
+    if((s.pagamentos||[]).length>0)out.push('Pagamentos pendentes reduzem estabilidade. Marque como pago ou revise a data de vencimento.');
+    if((s.vencemHoje||[]).length>3)out.push('Hoje está carregado. Escolha 3 tarefas principais e mova o restante para amanhã.');
+    if(!out.length)out.push('Sua organização está boa. Mantenha o ritmo e conclua as tarefas no prazo para subir o score.');
+    return out;
+  }
+
+  function renderV27(){
+    cssV27();salvarHistoricoScore();
+    const dashboard=document.getElementById('dashboard');if(!dashboard)return;
+    let painel=document.getElementById('painelV27');
+    if(!painel){painel=document.createElement('div');painel.id='painelV27';painel.className='card';painel.innerHTML=`<div class="sectionTitle"><h2>🧠 Assistente do Dia</h2><span class="small">missões, histórico e próximas ações</span></div><div class="v27Grid"><div class="v27Card"><b>🏆 Missões do dia</b><div id="v27Missoes" style="margin-top:10px"></div></div><div class="v27Card"><b>📈 Histórico do Score</b><div id="v27Chart" class="v27Chart" style="margin-top:10px"></div></div><div class="v27Card"><b>💡 Sugestões inteligentes</b><div id="v27Sugestoes" style="margin-top:10px"></div></div></div>`;const after=document.getElementById('scoreCardDashboard')||dashboard.firstChild;if(after&&after.nextSibling)dashboard.insertBefore(painel,after.nextSibling);else dashboard.insertBefore(painel,dashboard.firstChild)}
+    const mis=document.getElementById('v27Missoes');if(mis)mis.innerHTML=missoesDoDia().map(m=>`<div class="v27Mission"><div class="v27MissionIcon">${m[0]}</div><div style="flex:1"><b>${m[1]}</b><br><span class="small">${esc2(m[2])}</span></div><span class="v27Badge">${m[3]}</span></div>`).join('');
+    const chart=document.getElementById('v27Chart');if(chart){let hist=[];try{hist=JSON.parse(localStorage.getItem('score_history_v27')||'[]')}catch(e){}if(!hist.length)hist=[{date:hoje(),score:scoreAtual().score}];chart.innerHTML=hist.map(h=>`<div class="v27Bar" title="${h.date}: ${h.score}" style="height:${Math.max(6,h.score)}%"></div>`).join('')}
+    const sug=document.getElementById('v27Sugestoes');if(sug)sug.innerHTML=sugestoesInteligentes().map(x=>`<div class="v27Hint">${esc2(x)}</div>`).join('');
+  }
+
+  function instalarV27(){if(typeof window.render==='function'&&!window.__v27Wrapped){const original=window.render;window.render=function(){original();setTimeout(renderV27,0)};window.__v27Wrapped=true}renderV27();setTimeout(renderV27,500);setTimeout(renderV27,1500);setInterval(renderV27,45000)}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',instalarV27);else instalarV27();
+})();
