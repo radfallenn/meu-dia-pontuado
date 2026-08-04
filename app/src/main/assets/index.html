@@ -113,5 +113,104 @@
   }, 1000);
 })();
 </script>
+<script>
+(function(){
+  if(window.__MDP_PENDING_TODAY__) return;
+  window.__MDP_PENDING_TODAY__ = true;
+
+  function escapeHtml(value){
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function(char){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char];
+    });
+  }
+  function getState(){
+    try{
+      if(window.state && Array.isArray(window.state.tarefas)) return window.state;
+      const raw = localStorage.getItem('meu_dia_pro_v2') || localStorage.getItem('tarefas_whatsapp_v1');
+      const parsed = raw ? JSON.parse(raw) : {tarefas:[]};
+      return Array.isArray(parsed) ? {tarefas:parsed} : parsed;
+    }catch(e){ return {tarefas:[]}; }
+  }
+  function saveState(state){
+    try{
+      if(window.state){
+        Object.keys(window.state).forEach(function(k){ delete window.state[k]; });
+        Object.assign(window.state, state);
+      }
+      localStorage.setItem('meu_dia_pro_v2', JSON.stringify(state));
+      if(typeof window.render === 'function') window.render();
+      if(typeof window.mdpPush === 'function') setTimeout(function(){ window.mdpPush(true); }, 350);
+    }catch(e){}
+  }
+  function formatDate(value){
+    if(!value) return 'Sem data';
+    const p = String(value).split('-');
+    return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : value;
+  }
+  function priorityColor(priority){
+    if(priority === 'Crítica' || priority === 'Alta') return '#ef4444';
+    if(priority === 'Média') return '#d4a62a';
+    if(priority === 'Baixa') return '#16a34a';
+    return '#64748b';
+  }
+  function ensureStyle(){
+    if(document.getElementById('mdp-pending-style')) return;
+    const style = document.createElement('style');
+    style.id = 'mdp-pending-style';
+    style.textContent = '.mdpPendingPanel{background:#fff;border:1px solid #dedede;border-radius:22px;padding:18px;margin:14px 20px;box-shadow:0 14px 34px rgba(0,0,0,.08)}.mdpPendingHeader{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.mdpPendingHeader h2{margin:0;font-size:24px}.mdpPendingCount{background:#050505;color:#fff!important;border-radius:999px;padding:5px 10px;font-size:13px;font-weight:900}.mdpPendingItem{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:13px 4px;border-top:1px solid #eee}.mdpPendingItem:first-of-type{border-top:0}.mdpPendingItem input{width:24px!important;height:24px!important;margin-top:2px}.mdpPendingTitle{font-size:17px;font-weight:900;color:#050505}.mdpPendingMeta{font-size:13px;color:#666;margin-top:4px}.mdpPendingDot{display:inline-block;width:8px;height:8px;border-radius:50%;margin:0 5px}.mdpPendingEmpty{color:#666;padding:10px 0}';
+    document.head.appendChild(style);
+  }
+  function isTodayPage(){
+    const active = document.querySelector('.tab.active');
+    if(active) return (active.textContent || '').toLowerCase().includes('hoje');
+    return !!document.getElementById('dashboard');
+  }
+  function renderPending(){
+    ensureStyle();
+    const dashboard = document.getElementById('dashboard');
+    if(!dashboard || !isTodayPage()) return;
+    let panel = document.getElementById('mdpPendingPanel');
+    if(!panel){
+      panel = document.createElement('section');
+      panel.id = 'mdpPendingPanel';
+      panel.className = 'mdpPendingPanel';
+      const firstCard = dashboard.querySelector('.card');
+      if(firstCard && firstCard.nextSibling) dashboard.insertBefore(panel, firstCard.nextSibling);
+      else dashboard.appendChild(panel);
+    }
+    const state = getState();
+    const pending = (state.tarefas || []).filter(function(t){ return !t.done && !t.deleted; }).sort(function(a,b){
+      const da = String(a.data || '9999-99-99') + String(a.hora || '');
+      const db = String(b.data || '9999-99-99') + String(b.hora || '');
+      return da.localeCompare(db);
+    });
+    panel.innerHTML = '<div class="mdpPendingHeader"><h2>Todas as tarefas pendentes</h2><span class="mdpPendingCount">' + pending.length + '</span></div>' +
+      (pending.length ? pending.map(function(t){
+        return '<div class="mdpPendingItem"><input type="checkbox" data-pending-id="' + escapeHtml(t.id) + '"><div><div class="mdpPendingTitle">' + escapeHtml(t.nome || t.title || 'Tarefa') + '</div><div class="mdpPendingMeta">' + formatDate(t.data) + (t.hora ? ' • ' + escapeHtml(t.hora) : '') + ' • <span class="mdpPendingDot" style="background:' + priorityColor(t.prioridade) + '"></span>' + escapeHtml(t.prioridade || 'Sem prioridade') + (t.categoria ? ' • ' + escapeHtml(t.categoria) : '') + '</div></div></div>';
+      }).join('') : '<div class="mdpPendingEmpty">Nenhuma tarefa pendente.</div>');
+  }
+  document.addEventListener('change', function(e){
+    const checkbox = e.target.closest && e.target.closest('[data-pending-id]');
+    if(!checkbox) return;
+    const state = getState();
+    const task = (state.tarefas || []).find(function(t){ return String(t.id) === String(checkbox.dataset.pendingId); });
+    if(task){
+      task.done = true;
+      task.completedAt = new Date().toISOString();
+      task.updatedAt = task.completedAt;
+      saveState(state);
+      setTimeout(renderPending, 200);
+    }
+  }, true);
+  const oldRender = window.render;
+  if(typeof oldRender === 'function' && !window.__MDP_PENDING_RENDER_PATCH__){
+    window.render = function(){ oldRender.apply(this, arguments); setTimeout(renderPending, 60); };
+    window.__MDP_PENDING_RENDER_PATCH__ = true;
+  }
+  document.addEventListener('click', function(){ setTimeout(renderPending, 120); }, true);
+  setTimeout(renderPending, 700);
+  setInterval(renderPending, 3000);
+})();
+</script>
 </body>
 </html>
