@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>Meu Dia Pro</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="visual.css">
+</head>
+<body>
+<div id="root"></div>
+<script src="app.js"></script>
+<script src="status.js"></script>
+<script src="v23.js"></script>
+<script src="score.js"></script>
+<script>
+(function(){
+  if(window.__MDP_IMPORT_TEXT_FIX__) return;
+  window.__MDP_IMPORT_TEXT_FIX__ = true;
+  const url = () => (localStorage.getItem('rasp_backend_url') || 'http://192.168.1.70:8887').replace(/\/$/, '');
+  const headers = () => {
+    const h = {'Content-Type':'application/json'};
+    const token = localStorage.getItem('rasp_backend_token') || '';
+    if(token) h['X-Meu-Dia-Token'] = token;
+    return h;
+  };
+  const now = () => new Date().toISOString();
+  const uid = () => 't_' + Date.now() + '_' + Math.random().toString(16).slice(2);
+  function normalize(state){
+    state = state && typeof state === 'object' ? state : {tarefas:[],projetos:[],arquivo:[]};
+    state.tarefas = Array.isArray(state.tarefas) ? state.tarefas : [];
+    state.projetos = Array.isArray(state.projetos) ? state.projetos : [];
+    state.arquivo = Array.isArray(state.arquivo) ? state.arquivo : [];
+    state.tarefas.forEach(t => { if(!t.id) t.id = uid(); if(!t.createdAt) t.createdAt = now(); if(!t.updatedAt) t.updatedAt = t.createdAt; });
+    return state;
+  }
+  function getLocal(){
+    try{
+      if(window.state && Array.isArray(window.state.tarefas)) return normalize(window.state);
+      const raw = localStorage.getItem('meu_dia_pro_v2') || localStorage.getItem('tarefas_whatsapp_v1');
+      const parsed = raw ? JSON.parse(raw) : {tarefas:[],projetos:[],arquivo:[]};
+      return normalize(Array.isArray(parsed) ? {tarefas:parsed,projetos:[],arquivo:[]} : parsed);
+    }catch(e){ return {tarefas:[],projetos:[],arquivo:[]}; }
+  }
+  function setLocal(state){
+    state = normalize(state);
+    try{
+      if(window.state){ Object.keys(window.state).forEach(k => delete window.state[k]); Object.assign(window.state, state); }
+      localStorage.setItem('meu_dia_pro_v2', JSON.stringify(state));
+      if(typeof window.render === 'function') window.render();
+    }catch(e){}
+  }
+  function newer(a,b){ return new Date((a && (a.updatedAt || a.createdAt)) || 0).getTime() >= new Date((b && (b.updatedAt || b.createdAt)) || 0).getTime(); }
+  function merge(a,b){
+    a = normalize(a); b = normalize(b);
+    const map = new Map();
+    [...(b.tarefas||[]), ...(a.tarefas||[])].forEach(t => {
+      if(!t.id) t.id = uid();
+      const old = map.get(t.id);
+      if(!old || newer(t, old)) map.set(t.id, Object.assign({}, old || {}, t));
+    });
+    return Object.assign({}, b, a, {tarefas:[...map.values()].filter(t => !t.deleted)});
+  }
+  function status(text){
+    const e = document.getElementById('mdp42Status') || document.getElementById('mdp41Status') || document.getElementById('mdp40Status');
+    if(e) e.textContent = text;
+  }
+  async function push(state){
+    try{
+      const payload = {device:'apk-android-text-import', savedAt:now(), state:state, config:{}};
+      const r = await fetch(url() + '/api/state', {method:'POST', headers:headers(), body:JSON.stringify(payload)});
+      const j = await r.json().catch(() => ({}));
+      return !!j.ok;
+    }catch(e){ return false; }
+  }
+  async function importText(){
+    const box = document.getElementById('mdp42Paste') || document.getElementById('mdp41Paste') || document.querySelector('textarea[placeholder*="JSON"]');
+    const text = box ? box.value : '';
+    if(!text || !text.trim()){ status('Cole um JSON antes de importar.'); return; }
+    try{
+      const json = JSON.parse(text);
+      const incoming = json.state || json;
+      const merged = merge(getLocal(), incoming);
+      setLocal(merged);
+      status('JSON colado importado. Salvando no MongoDB...');
+      const ok = await push(merged);
+      status(ok ? 'JSON importado e sincronizado com sucesso.' : 'JSON importado localmente. Backend offline.');
+      if(typeof window.mdpPull === 'function') setTimeout(() => window.mdpPull(true), 800);
+    }catch(e){
+      status('JSON colado inválido. Copie o backup completo.');
+    }
+  }
+  window.mdpImportTextFix = importText;
+  document.addEventListener('click', function(e){
+    const el = e.target && e.target.closest ? e.target.closest('button,[data-mdp-action]') : null;
+    if(!el) return;
+    const action = el.getAttribute('data-mdp-action') || '';
+    const text = (el.innerText || el.textContent || '').toLowerCase();
+    if(action === 'paste' || text.includes('importar do texto')){
+      e.preventDefault();
+      e.stopPropagation();
+      importText();
+    }
+  }, true);
+  setInterval(function(){
+    document.querySelectorAll('button').forEach(btn => {
+      const text = (btn.innerText || btn.textContent || '').toLowerCase();
+      if(text.includes('importar do texto') && !btn.dataset.fixedPaste){
+        btn.dataset.fixedPaste = '1';
+        btn.onclick = function(ev){ ev.preventDefault(); importText(); return false; };
+      }
+    });
+  }, 1000);
+})();
+</script>
+<script>
+(function(){
+  if(window.__MDP_PENDING_TODAY__) return;
+  window.__MDP_PENDING_TODAY__ = true;
+
+  function escapeHtml(value){
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function(char){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char];
+    });
+  }
+  function getState(){
+    try{
+      if(window.state && Array.isArray(window.state.tarefas)) return window.state;
+      const raw = localStorage.getItem('meu_dia_pro_v2') || localStorage.getItem('tarefas_whatsapp_v1');
+      const parsed = raw ? JSON.parse(raw) : {tarefas:[]};
+      return Array.isArray(parsed) ? {tarefas:parsed} : parsed;
+    }catch(e){ return {tarefas:[]}; }
+  }
+  function saveState(state){
+    try{
+      if(window.state){
+        Object.keys(window.state).forEach(function(k){ delete window.state[k]; });
+        Object.assign(window.state, state);
+      }
+      localStorage.setItem('meu_dia_pro_v2', JSON.stringify(state));
+      if(typeof window.render === 'function') window.render();
+      if(typeof window.mdpPush === 'function') setTimeout(function(){ window.mdpPush(true); }, 350);
+    }catch(e){}
+  }
+  function formatDate(value){
+    if(!value) return 'Sem data';
+    const p = String(value).split('-');
+    return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : value;
+  }
+  function priorityColor(priority){
+    if(priority === 'Crítica' || priority === 'Alta') return '#ef4444';
+    if(priority === 'Média') return '#d4a62a';
+    if(priority === 'Baixa') return '#16a34a';
+    return '#64748b';
+  }
+  function ensureStyle(){
+    if(document.getElementById('mdp-pending-style')) return;
+    const style = document.createElement('style');
+    style.id = 'mdp-pending-style';
+    style.textContent = '.mdpPendingPanel{background:#fff;border:1px solid #dedede;border-radius:22px;padding:18px;margin:14px 20px;box-shadow:0 14px 34px rgba(0,0,0,.08)}.mdpPendingHeader{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.mdpPendingHeader h2{margin:0;font-size:24px}.mdpPendingCount{background:#050505;color:#fff!important;border-radius:999px;padding:5px 10px;font-size:13px;font-weight:900}.mdpPendingItem{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:13px 4px;border-top:1px solid #eee}.mdpPendingItem:first-of-type{border-top:0}.mdpPendingItem input{width:24px!important;height:24px!important;margin-top:2px}.mdpPendingTitle{font-size:17px;font-weight:900;color:#050505}.mdpPendingMeta{font-size:13px;color:#666;margin-top:4px}.mdpPendingDot{display:inline-block;width:8px;height:8px;border-radius:50%;margin:0 5px}.mdpPendingEmpty{color:#666;padding:10px 0}';
+    document.head.appendChild(style);
+  }
+  function isTodayPage(){
+    const active = document.querySelector('.tab.active');
+    if(active) return (active.textContent || '').toLowerCase().includes('hoje');
+    return !!document.getElementById('dashboard');
+  }
+  function renderPending(){
+    ensureStyle();
+    const dashboard = document.getElementById('dashboard');
+    if(!dashboard || !isTodayPage()) return;
+    let panel = document.getElementById('mdpPendingPanel');
+    if(!panel){
+      panel = document.createElement('section');
+      panel.id = 'mdpPendingPanel';
+      panel.className = 'mdpPendingPanel';
+      const firstCard = dashboard.querySelector('.card');
+      if(firstCard && firstCard.nextSibling) dashboard.insertBefore(panel, firstCard.nextSibling);
+      else dashboard.appendChild(panel);
+    }
+    const state = getState();
+    const pending = (state.tarefas || []).filter(function(t){ return !t.done && !t.deleted; }).sort(function(a,b){
+      const da = String(a.data || '9999-99-99') + String(a.hora || '');
+      const db = String(b.data || '9999-99-99') + String(b.hora || '');
+      return da.localeCompare(db);
+    });
+    panel.innerHTML = '<div class="mdpPendingHeader"><h2>Todas as tarefas pendentes</h2><span class="mdpPendingCount">' + pending.length + '</span></div>' +
+      (pending.length ? pending.map(function(t){
+        return '<div class="mdpPendingItem"><input type="checkbox" data-pending-id="' + escapeHtml(t.id) + '"><div><div class="mdpPendingTitle">' + escapeHtml(t.nome || t.title || 'Tarefa') + '</div><div class="mdpPendingMeta">' + formatDate(t.data) + (t.hora ? ' • ' + escapeHtml(t.hora) : '') + ' • <span class="mdpPendingDot" style="background:' + priorityColor(t.prioridade) + '"></span>' + escapeHtml(t.prioridade || 'Sem prioridade') + (t.categoria ? ' • ' + escapeHtml(t.categoria) : '') + '</div></div></div>';
+      }).join('') : '<div class="mdpPendingEmpty">Nenhuma tarefa pendente.</div>');
+  }
+  document.addEventListener('change', function(e){
+    const checkbox = e.target.closest && e.target.closest('[data-pending-id]');
+    if(!checkbox) return;
+    const state = getState();
+    const task = (state.tarefas || []).find(function(t){ return String(t.id) === String(checkbox.dataset.pendingId); });
+    if(task){
+      task.done = true;
+      task.completedAt = new Date().toISOString();
+      task.updatedAt = task.completedAt;
+      saveState(state);
+      setTimeout(renderPending, 200);
+    }
+  }, true);
+  const oldRender = window.render;
+  if(typeof oldRender === 'function' && !window.__MDP_PENDING_RENDER_PATCH__){
+    window.render = function(){ oldRender.apply(this, arguments); setTimeout(renderPending, 60); };
+    window.__MDP_PENDING_RENDER_PATCH__ = true;
+  }
+  document.addEventListener('click', function(){ setTimeout(renderPending, 120); }, true);
+  setTimeout(renderPending, 700);
+  setInterval(renderPending, 3000);
+})();
+</script>
+</body>
+</html>
